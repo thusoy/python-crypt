@@ -1,15 +1,82 @@
+"""
+Pure-python implementations of the SHA2-based variants of crypt(3).
+
+Pretty close to direct translation from the glibc crypt(3) source, pardon
+the c-isms.
+"""
+
+from collections import namedtuple as _namedtuple
 from hashlib import sha512
-import base64
+from random import SystemRandom as _SystemRandom
 import re
+import sys
 
 BASE64_CHARACTERS = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 _SALT_RE = re.compile(r'\$(?P<algo>\d)\$(?:rounds=(?P<rounds>\d+)\$)?(?P<salt>.{1,16})')
 ROUNDS_DEFAULT = 5000 # As used by crypt(3)
+PY2 = sys.version_info < (3, 0, 0)
 
-def crypt(key, salt):
-    rounds = 5000
-    if not salt:
-        salt = base64.b64encode(os.urandom(12))
+_sr = _SystemRandom()
+
+
+class _Method(_namedtuple('_Method', 'name ident salt_chars total_size')):
+    """Class representing a salt method per the Modular Crypt Format or the
+    legacy 2-character crypt method."""
+
+    def __repr__(self):
+        return '<crypt.METHOD_{}>'.format(self.name)
+
+
+def mksalt(method=None):
+    """Generate a salt for the specified method.
+    If not specified, the strongest available method will be used.
+    """
+    if method is None:
+        method = methods[0]
+    s = '${}$'.format(method.ident) if method.ident else ''
+    s += ''.join(_sr.choice(BASE64_CHARACTERS) for char in range(method.salt_chars))
+    return s
+
+
+def crypt(word, salt=None):
+    """Return a string representing the one-way hash of a password, with a salt
+    prepended.
+    If ``salt`` is not specified or is ``None``, the strongest
+    available method will be selected and a salt generated.  Otherwise,
+    ``salt`` may be one of the ``crypt.METHOD_*`` values, or a string as
+    returned by ``crypt.mksalt()``.
+    """
+    if salt is None or isinstance(salt, _Method):
+        salt = mksalt(salt)
+    return _crypt(word, salt)
+
+
+#  available salting/crypto methods
+METHOD_SHA256 = _Method('SHA256', '5', 16, 63)
+METHOD_SHA512 = _Method('SHA512', '6', 16, 106)
+
+methods = (
+    METHOD_SHA256,
+    METHOD_SHA512,
+)
+
+
+def byte2int(value):
+    if PY2:
+        return ord(value)
+    else:
+        return value
+
+
+def int2byte(value):
+    if PY2:
+        return chr(value)
+    else:
+        return value
+
+
+def _crypt(key, salt):
+    rounds = ROUNDS_DEFAULT
     algo = 6
     if '$' in salt:
         salt_match = _SALT_RE.match(salt)
@@ -31,12 +98,13 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
     """
     h = sha512()
     alt_h = sha512()
+    key = key.encode('utf-8')
     h.update(key)
-    h.update(salt)
+    h.update(salt.encode('utf-8'))
     key_len = len(key)
 
     alt_h.update(key)
-    alt_h.update(salt)
+    alt_h.update(salt.encode('utf-8'))
     alt_h.update(key)
     alt_result = alt_h.digest()
 
@@ -135,18 +203,18 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
     ret += b64_from_24bit('\0', '\0', alt_result[63], 2)
 
     if rounds == ROUNDS_DEFAULT:
-        return '$6$%s$%s' % (salt, ret)
+        return '$6${}${}'.format(salt, ret)
     else:
-        return '$6$rounds=%d$%s$%s' % (rounds, salt, ret)
+        return '$6$rounds={}${}${}'.format(rounds, salt, ret)
 
 
 def b64_from_24bit(b2, b1, b0, n):
-    b2 = ord(b2)
-    b1 = ord(b1)
-    b0 = ord(b0)
+    b2 = byte2int(b2)
+    b1 = byte2int(b1)
+    b0 = byte2int(b0)
     index = b2 << 16 | b1 << 8 | b0
-    ret = ''
+    ret = []
     for i in range(n):
-        ret += BASE64_CHARACTERS[index & 0x3f]
+        ret.append(BASE64_CHARACTERS[index & 0x3f])
         index >>= 6
-    return ret
+    return ''.join(ret)
