@@ -24,7 +24,7 @@ class _Method(_namedtuple('_Method', 'name ident salt_chars total_size')):
     legacy 2-character crypt method."""
 
     def __repr__(self):
-        return '<crypt.METHOD_{}>'.format(self.name)
+        return '<crypt.METHOD_{0}>'.format(self.name)
 
 
 def mksalt(method=None):
@@ -33,7 +33,7 @@ def mksalt(method=None):
     """
     if method is None:
         method = methods[0]
-    s = '${}$'.format(method.ident) if method.ident else ''
+    s = '${0}$'.format(method.ident) if method.ident else ''
     s += ''.join(_sr.choice(BASE64_CHARACTERS) for char in range(method.salt_chars))
     return s
 
@@ -222,9 +222,9 @@ def sha2_crypt(key, salt, hashfunc, rounds=ROUNDS_DEFAULT):
 
     algo = 6 if digest_size == 64 else 5
     if rounds == ROUNDS_DEFAULT:
-        return '${}${}${}'.format(algo, salt, ret)
+        return '${0}${1}${2}'.format(algo, salt, ret)
     else:
-        return '${}$rounds={}${}${}'.format(algo, rounds, salt, ret)
+        return '${0}$rounds={1}${2}${3}'.format(algo, rounds, salt, ret)
 
 
 def b64_from_24bit(b2, b1, b0, n):
