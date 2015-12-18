@@ -1,4 +1,4 @@
-# python-crypt
+# python-crypt [![Build Status](https://travis-ci.org/thusoy/python-crypt.svg?branch=master)](https://travis-ci.org/thusoy/python-crypt)
 
 Pure-python implementation of the crypt(3) SHA2 functions.
 
