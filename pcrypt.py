@@ -6,8 +6,8 @@ the c-isms.
 """
 
 from collections import namedtuple as _namedtuple
-from hashlib import sha512
 from random import SystemRandom as _SystemRandom
+import hashlib
 import re
 import sys
 
@@ -86,19 +86,22 @@ def _crypt(key, salt):
         algo = int(algo)
         rounds = int(rounds)
     if algo == 6:
-        return sha512_crypt(key, salt, rounds)
+        return sha2_crypt(key, salt, hashlib.sha512, rounds)
+    elif algo == 5:
+        return sha2_crypt(key, salt, hashlib.sha256, rounds)
     else:
         raise ValueError('Unsupported algorithm')
 
 
-def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
+def sha2_crypt(key, salt, hashfunc, rounds=ROUNDS_DEFAULT):
     """
     This algorithm is insane. History can be found at
     https://en.wikipedia.org/wiki/Crypt_%28C%29
     """
-    h = sha512()
-    alt_h = sha512()
     key = key.encode('utf-8')
+    h = hashfunc()
+    alt_h = hashfunc()
+    digest_size = h.digest_size
     h.update(key)
     h.update(salt.encode('utf-8'))
     key_len = len(key)
@@ -109,9 +112,9 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
     alt_result = alt_h.digest()
 
     cnt = key_len
-    while cnt > 64:
+    while cnt > digest_size:
         h.update(alt_result)
-        cnt -= 64
+        cnt -= digest_size
 
     h.update(alt_result[:cnt])
 
@@ -128,7 +131,7 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
 
     alt_result = h.digest()
 
-    h = sha512()
+    h = hashfunc()
 
     for i in range(key_len):
         h.update(key)
@@ -136,30 +139,30 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
     temp_result = h.digest()
 
     cnt = key_len
-    p_bytes = ''
-    while cnt >= 64:
+    p_bytes = b''
+    while cnt >= digest_size:
         p_bytes += temp_result
-        cnt -= 64
+        cnt -= digest_size
     p_bytes += temp_result[:cnt]
 
     cnt = 0
-    alt_h = sha512()
-    while cnt < 16 + ord(alt_result[0]):
-        alt_h.update(salt)
+    alt_h = hashfunc()
+    while cnt < 16 + byte2int(alt_result[0]):
+        alt_h.update(salt.encode('utf-8'))
         cnt += 1
 
     temp_result = alt_h.digest()
 
     cnt = len(salt)
-    s_bytes = ''
-    while cnt >= 64:
+    s_bytes = b''
+    while cnt >= digest_size:
         s_bytes += temp_result
-        cnt -= 64
+        cnt -= digest_size
     s_bytes += temp_result[:cnt]
 
     # Do the actual iterations
     for i in range(rounds):
-        h = sha512()
+        h = hashfunc()
 
         if i & 1 != 0:
             h.update(p_bytes)
@@ -179,33 +182,49 @@ def sha512_crypt(key, salt, rounds=ROUNDS_DEFAULT):
 
         alt_result = h.digest()
     ret = ''
-    ret += b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4)
-    ret += b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4)
-    ret += b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4)
-    ret += b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4)
-    ret += b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4)
-    ret += b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4)
-    ret += b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4)
-    ret += b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4)
-    ret += b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4)
-    ret += b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4)
-    ret += b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4)
-    ret += b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4)
-    ret += b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4)
-    ret += b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4)
-    ret += b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4)
-    ret += b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4)
-    ret += b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4)
-    ret += b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4)
-    ret += b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4)
-    ret += b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4)
-    ret += b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4)
-    ret += b64_from_24bit('\0', '\0', alt_result[63], 2)
-
-    if rounds == ROUNDS_DEFAULT:
-        return '$6${}${}'.format(salt, ret)
+    if digest_size == 64:
+        # SHA-512
+        ret += b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4)
+        ret += b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4)
+        ret += b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4)
+        ret += b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4)
+        ret += b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4)
+        ret += b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4)
+        ret += b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4)
+        ret += b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4)
+        ret += b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4)
+        ret += b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4)
+        ret += b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4)
+        ret += b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4)
+        ret += b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4)
+        ret += b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4)
+        ret += b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4)
+        ret += b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4)
+        ret += b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4)
+        ret += b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4)
+        ret += b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4)
+        ret += b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4)
+        ret += b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4)
+        ret += b64_from_24bit(int2byte(0), int2byte(0), alt_result[63], 2)
     else:
-        return '$6$rounds={}${}${}'.format(rounds, salt, ret)
+        # SHA-256
+        ret += b64_from_24bit(alt_result[0], alt_result[10], alt_result[20], 4)
+        ret += b64_from_24bit(alt_result[21], alt_result[1], alt_result[11], 4)
+        ret += b64_from_24bit(alt_result[12], alt_result[22], alt_result[2], 4)
+        ret += b64_from_24bit(alt_result[3], alt_result[13], alt_result[23], 4)
+        ret += b64_from_24bit(alt_result[24], alt_result[4], alt_result[14], 4)
+        ret += b64_from_24bit(alt_result[15], alt_result[25], alt_result[5], 4)
+        ret += b64_from_24bit(alt_result[6], alt_result[16], alt_result[26], 4)
+        ret += b64_from_24bit(alt_result[27], alt_result[7], alt_result[17], 4)
+        ret += b64_from_24bit(alt_result[18], alt_result[28], alt_result[8], 4)
+        ret += b64_from_24bit(alt_result[9], alt_result[19], alt_result[29], 4)
+        ret += b64_from_24bit(int2byte(0), alt_result[31], alt_result[30], 3)
+
+    algo = 6 if digest_size == 64 else 5
+    if rounds == ROUNDS_DEFAULT:
+        return '${}${}${}'.format(algo, salt, ret)
+    else:
+        return '${}$rounds={}${}${}'.format(algo, rounds, salt, ret)
 
 
 def b64_from_24bit(b2, b1, b0, n):

@@ -3,6 +3,11 @@ import pcrypt
 
 def test_pcrypt():
     test_inputs = [
+        ('password', '$5$salt'),
+        ('password'*32, '$5$salt'),
+        ('password', '$5$saltsalt'),
+        ('password', '$5$rounds=10000$salt'),
+        ('password'*32, '$5$saltsaltsaltsalt'),
         ('password', '$6$salt'),
         ('password'*32, '$6$salt'),
         ('password', '$6$saltsalt'),
