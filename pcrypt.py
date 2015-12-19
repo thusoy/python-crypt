@@ -61,7 +61,16 @@ def crypt(word, salt=None, rounds=_ROUNDS_DEFAULT):
     """
     if salt is None or isinstance(salt, _Method):
         salt = mksalt(salt, rounds)
-    return _crypt(word, salt)
+
+    algo, rounds, salt = extract_components_from_salt(salt)
+    if algo == 5:
+        hashfunc = hashlib.sha256
+    elif algo == 6:
+        hashfunc = hashlib.sha512
+    else:
+        raise ValueError('Unsupported algorithm, must be either 5 (sha256) or 6 (sha512)')
+
+    return sha2_crypt(word, salt, hashfunc, rounds)
 
 
 def byte2int(value):
@@ -78,28 +87,16 @@ def int2byte(value):
         return value
 
 
-def extract_salt_components(salt):
+def extract_components_from_salt(salt):
     salt_match = _SALT_RE.match(salt)
-    if not salt_match:
-        raise ValueError('Invalid format on arguments, was %s and %s' % (key, salt))
-    algo, rounds, salt = salt_match.groups(_ROUNDS_DEFAULT)
-    algo = int(algo)
-    rounds = int(rounds)
-    return _namedtuple('SaltArguments', 'algo rounds salt')(algo, rounds, salt)
-
-
-def _crypt(key, salt):
-    if '$' in salt:
-        algo, rounds, salt = extract_salt_components(salt)
+    if salt_match:
+        algo, rounds, salt = salt_match.groups(_ROUNDS_DEFAULT)
+        algo = int(algo)
+        rounds = int(rounds)
     else:
         algo = 6
         rounds = _ROUNDS_DEFAULT
-    if algo == 6:
-        return sha2_crypt(key, salt, hashlib.sha512, rounds)
-    elif algo == 5:
-        return sha2_crypt(key, salt, hashlib.sha256, rounds)
-    else:
-        raise ValueError('Unsupported algorithm, must be either 5 (sha256) or 6 (sha512)')
+    return _namedtuple('Salt', 'algo rounds salt')(algo, rounds, salt)
 
 
 def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
@@ -129,7 +126,6 @@ def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
 
     # Take the binary representation of the length of the key and for every
     # 1 add the alternate sum, for every 0 the key.
-
     cnt = key_len
     while cnt > 0:
         if cnt & 1 == 0:
@@ -256,14 +252,14 @@ def cli(argv=None):
         ' it harder to reverse a hash through brute force. Default: %(default)s')
     parser.add_argument('-a', '--algo', choices=('sha256', 'sha512'), default='sha512',
         help='Which algorithm to use. Default: %(default)s')
-    # parser.add_argument('-', '--stdin', help='Read plaintext passwords from stdin')
+
     args = parser.parse_args(argv)
+
     if not 1000 < args.rounds < 999999999:
         # limits fetched from crypt(3) source
         print('Rounds must be between 1000 and 999999999.')
         sys.exit(1)
-    password = getpass.getpass()
 
+    password = getpass.getpass()
     method = METHOD_SHA256 if args.algo == 'sha256' else METHOD_SHA512
-    salt = mksalt(method, rounds=args.rounds)
-    print(crypt(password, salt))
+    print(crypt(password, method, rounds=args.rounds))
