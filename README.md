@@ -54,3 +54,6 @@ As a little extra nugget, there's also a handy CLI to quickly generate a hash:
                             brute force. Default: 5000
       -a {sha256,sha512}, --algo {sha256,sha512}
                             Which algorithm to use. Default: sha512
+
+
+**NB**: You'd probably guess from this being a pure-python implementation of a compute-heavy operation, but I just have to say this explicitly: Do not use this for performance-critical applications! Performance is roughly five orders of magnitude slower than the plain C version.
