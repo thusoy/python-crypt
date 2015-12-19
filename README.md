@@ -16,19 +16,21 @@ with.
 
 API is identical to the [built-in crypt](https://docs.python.org/3.5/library/crypt.html) module on *nix:
 
-    import pcrypt, getpass
-
-    print pcrypt.crypt(getpass.getpass())
+    >>> import pcrypt, getpass
+    >>> print(pcrypt.crypt(getpass.getpass()))
+    $6$tyjS23QPnY6k37iD$7oM9nObOVQUQ<...>/x7VKbuiyqgT81
 
 If you want to override the number of rounds used for hashing, you can specify the parameter `rounds` to crypt:
 
-    $ print pcrypt.crypt(getpass.getpass(), rounds=50000)
+    >>> print(pcrypt.crypt(getpass.getpass(), rounds=50000))
+    $6$rounds=50000$FEkeiFqoGiU6Bd3v$6jn8ZZ<...>uXKvs7XAbp.
 
 The default number of rounds is 5000, same as for crypt(3).
 
 To use SHA256 instead of the default SHA512:
 
-    $ print pcrypt.crypt(getpass.getpass(), pcrypt.METHOD_SHA256)
+    >>> print(pcrypt.crypt(getpass.getpass(), pcrypt.METHOD_SHA256))
+    $5$Zcxyug8MUozUjGIQ$yqvzOQR<...>pnLMvpOhhmrOWfn5
 
 If the second argument is given it must be either an existing salt string matching the
 format `$<algo>$(rounds=<rounds>$)?<salt>($<hash>)?`, or one of `pcrypt.METHOD_SHA256`
