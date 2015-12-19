@@ -75,32 +75,6 @@ def crypt(word, salt=None, rounds=_ROUNDS_DEFAULT):
     return sha2_crypt(word, salt, hashfunc, rounds)
 
 
-def byte2int(value):
-    if _PY2:
-        return ord(value)
-    else:
-        return value
-
-
-def int2byte(value):
-    if _PY2:
-        return chr(value)
-    else:
-        return value
-
-
-def extract_components_from_salt(salt):
-    salt_match = _SALT_RE.match(salt)
-    if salt_match:
-        algo, rounds, salt = salt_match.groups(_ROUNDS_DEFAULT)
-        algo = int(algo)
-        rounds = int(rounds)
-    else:
-        algo = 6
-        rounds = _ROUNDS_DEFAULT
-    return _namedtuple('Salt', 'algo rounds salt')(algo, rounds, salt)
-
-
 def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
     """
     This algorithm is insane. History can be found at
@@ -237,6 +211,32 @@ def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
         return '${0}${1}${2}'.format(algo, salt, ''.join(ret))
     else:
         return '${0}$rounds={1}${2}${3}'.format(algo, rounds, salt, ''.join(ret))
+
+
+def byte2int(value):
+    if _PY2:
+        return ord(value)
+    else:
+        return value
+
+
+def int2byte(value):
+    if _PY2:
+        return chr(value)
+    else:
+        return value
+
+
+def extract_components_from_salt(salt):
+    salt_match = _SALT_RE.match(salt)
+    if salt_match:
+        algo, rounds, salt = salt_match.groups(_ROUNDS_DEFAULT)
+        algo = int(algo)
+        rounds = int(rounds)
+    else:
+        algo = 6
+        rounds = _ROUNDS_DEFAULT
+    return _namedtuple('Salt', 'algo rounds salt')(algo, rounds, salt)
 
 
 def b64_from_24bit(b2, b1, b0, n):
