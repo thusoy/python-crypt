@@ -30,7 +30,9 @@ To use SHA256 instead of the default SHA512:
 
     $ print pcrypt.crypt(getpass.getpass(), pcrypt.METHOD_SHA256)
 
-If the second argument is given it must be either an existing salt string matching the format `$<algo>$(rounds=<rounds>$)?<salt>($<hash>)?
+If the second argument is given it must be either an existing salt string matching the
+format `$<algo>$(rounds=<rounds>$)?<salt>($<hash>)?`, or one of `pcrypt.METHOD_SHA256`
+or `pcrypt.METHOD_SHA512`.
 
 Without specifying salt manually the module will generate a new salt and use
 the strongest hash function available.
