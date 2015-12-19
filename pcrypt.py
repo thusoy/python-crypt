@@ -259,6 +259,8 @@ def cli(argv=None):
         ' it harder to reverse a hash through brute force. Default: %(default)s')
     parser.add_argument('-a', '--algo', choices=('sha256', 'sha512'), default='sha512',
         help='Which algorithm to use. Default: %(default)s')
+    parser.add_argument('-s', '--single-prompt', action='store_true',
+        help="Don't ask to repeat the password")
 
     args = parser.parse_args(argv)
 
@@ -267,6 +269,21 @@ def cli(argv=None):
         print('Rounds must be between 1000 and 999999999.')
         sys.exit(1)
 
-    password = getpass.getpass()
+    if args.single_prompt:
+        password = getpass.getpass('Enter password: ')
+    else:
+        password = double_prompt_for_plaintext_password()
     method = METHOD_SHA256 if args.algo == 'sha256' else METHOD_SHA512
     print(crypt(password, method, rounds=args.rounds))
+
+
+def double_prompt_for_plaintext_password():
+    """Get the desired password from the user through a double prompt."""
+    password = 1
+    password_repeat = 2
+    while password != password_repeat:
+        password = getpass.getpass('Enter password: ')
+        password_repeat = getpass.getpass('Repeat password: ')
+        if password != password_repeat:
+            print('Passwords do not match, try again.')
+    return password

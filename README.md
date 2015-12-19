@@ -42,11 +42,10 @@ the strongest hash function available.
 As a little extra nugget, there's also a handy CLI to quickly generate a hash:
 
     $ pcrypt -h
-    usage: pcrypt [-h] [-r ROUNDS] [-a {sha256,sha512}]
+    usage: pcrypt [-h] [-r ROUNDS] [-a {sha256,sha512}] [-s]
 
     Compute a password hash for SHA256/SHA512 in crypt(3)-compatible format.
     Password will be prompted for.
-
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -56,6 +55,6 @@ As a little extra nugget, there's also a handy CLI to quickly generate a hash:
                             brute force. Default: 5000
       -a {sha256,sha512}, --algo {sha256,sha512}
                             Which algorithm to use. Default: sha512
-
+      -s, --single-prompt   Don't ask to repeat the password
 
 **NB**: You'd probably guess from this being a pure-python implementation of a compute-heavy operation, but I just have to say this explicitly: Do not use this for performance-critical applications! Performance is roughly five orders of magnitude slower than the plain C version.
