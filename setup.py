@@ -16,7 +16,7 @@ setup(
     author_email='git@thusoy.com',
     url='https://github.com/thusoy/python-crypt',
     description="Pure-python implementation of the SHA2 crypt(3) functions",
-    modules=['pcrypt'],
+    py_modules=['pcrypt'],
     install_requires=install_requires,
     extras_require={
         'test': ['mock', 'pytest'],
@@ -26,6 +26,7 @@ setup(
             'pcrypt = pcrypt:cli',
         ]
     },
+    license='MIT',
     classifiers=[
         # 'Development Status :: 1 - Planning',
         # 'Development Status :: 2 - Pre-Alpha',
