@@ -266,7 +266,7 @@ def cli(argv=None):
 
     if not 1000 < args.rounds < 999999999:
         # limits fetched from crypt(3) source
-        print('Rounds must be between 1000 and 999999999.')
+        sys.stderr.write('Rounds must be between 1000 and 999999999.\n')
         sys.exit(1)
 
     if args.single_prompt:
@@ -285,5 +285,5 @@ def double_prompt_for_plaintext_password():
         password = getpass.getpass('Enter password: ')
         password_repeat = getpass.getpass('Repeat password: ')
         if password != password_repeat:
-            print('Passwords do not match, try again.')
+            sys.stderr.write('Passwords do not match, try again.\n')
     return password
