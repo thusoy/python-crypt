@@ -7,6 +7,8 @@ the c-isms.
 
 from collections import namedtuple as _namedtuple
 from random import SystemRandom as _SystemRandom
+import argparse
+import getpass
 import hashlib
 import re
 import sys
@@ -27,18 +29,20 @@ class _Method(_namedtuple('_Method', 'name ident salt_chars total_size')):
         return '<crypt.METHOD_{0}>'.format(self.name)
 
 
-def mksalt(method=None):
+def mksalt(method=None, rounds=None):
     """Generate a salt for the specified method.
     If not specified, the strongest available method will be used.
     """
     if method is None:
         method = methods[0]
-    s = '${0}$'.format(method.ident) if method.ident else ''
-    s += ''.join(_sr.choice(BASE64_CHARACTERS) for char in range(method.salt_chars))
-    return s
+    salt = ['${0}$'.format(method.ident) if method.ident else '']
+    if rounds:
+        salt.append('rounds={0:d}$'.format(rounds))
+    salt.append(''.join(_sr.choice(_BASE64_CHARACTERS) for char in range(method.salt_chars)))
+    return ''.join(salt)
 
 
-def crypt(word, salt=None):
+def crypt(word, salt=None, rounds=_ROUNDS_DEFAULT):
     """Return a string representing the one-way hash of a password, with a salt
     prepended.
     If ``salt`` is not specified or is ``None``, the strongest
@@ -47,7 +51,7 @@ def crypt(word, salt=None):
     returned by ``crypt.mksalt()``.
     """
     if salt is None or isinstance(salt, _Method):
-        salt = mksalt(salt)
+        salt = mksalt(salt, rounds)
     return _crypt(word, salt)
 
 
@@ -75,16 +79,22 @@ def int2byte(value):
         return value
 
 
+def extract_salt_components(salt):
+    salt_match = _SALT_RE.match(salt)
+    if not salt_match:
+        raise ValueError('Invalid format on arguments, was %s and %s' % (key, salt))
+    algo, rounds, salt = salt_match.groups(_ROUNDS_DEFAULT)
+    algo = int(algo)
+    rounds = int(rounds)
+    return _namedtuple('SaltArguments', 'algo rounds salt')(algo, rounds, salt)
+
+
 def _crypt(key, salt):
-    rounds = ROUNDS_DEFAULT
-    algo = 6
     if '$' in salt:
-        salt_match = _SALT_RE.match(salt)
-        if not salt_match:
-            raise ValueError('Invalid format on arguments, was %s and %s' % (key, salt))
-        algo, rounds, salt = salt_match.groups(rounds)
-        algo = int(algo)
-        rounds = int(rounds)
+        algo, rounds, salt = extract_salt_components(salt)
+    else:
+        algo = 6
+        rounds = _ROUNDS_DEFAULT
     if algo == 6:
         return sha2_crypt(key, salt, hashlib.sha512, rounds)
     elif algo == 5:
@@ -237,3 +247,24 @@ def b64_from_24bit(b2, b1, b0, n):
         ret.append(BASE64_CHARACTERS[index & 0x3f])
         index >>= 6
     return ''.join(ret)
+
+
+def cli(argv=None):
+    parser = argparse.ArgumentParser(description='Compute a password hash for '
+        'SHA256/SHA512 in crypt(3)-compatible format. Password will be prompted for.')
+    parser.add_argument('-r', '--rounds', default=_ROUNDS_DEFAULT, type=int,
+        help='How many rounds of hashing to perform. More rounds are slower, making'
+        ' it harder to reverse a hash through brute force. Default: %(default)s')
+    parser.add_argument('-a', '--algo', choices=('sha256', 'sha512'), default='sha512',
+        help='Which algorithm to use. Default: %(default)s')
+    # parser.add_argument('-', '--stdin', help='Read plaintext passwords from stdin')
+    args = parser.parse_args(argv)
+    if not 1000 < args.rounds < 999999999:
+        # limits fetched from crypt(3) source
+        print('Rounds must be between 1000 and 999999999.')
+        sys.exit(1)
+    password = getpass.getpass()
+
+    method = METHOD_SHA256 if args.algo == 'sha256' else METHOD_SHA512
+    salt = mksalt(method, rounds=args.rounds)
+    print(crypt(password, salt))

@@ -18,6 +18,9 @@ setup(
     description="Pure-python implementation of the SHA2 crypt(3) functions",
     modules=['pcrypt'],
     install_requires=install_requires,
+    extras_require={
+        'test': ['mock', 'pytest'],
+    },
     entry_points={
         'console_scripts': [
             'pcrypt = pcrypt:cli',
