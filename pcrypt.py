@@ -5,6 +5,8 @@ Pretty close to direct translation from the glibc crypt(3) source, pardon
 the c-isms.
 """
 
+from __future__ import division, print_function
+
 from collections import namedtuple as _namedtuple
 from random import SystemRandom as _SystemRandom
 import argparse
@@ -108,128 +110,133 @@ def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
     h = hashfunc()
     alt_h = hashfunc()
     digest_size = h.digest_size
-    h.update(key)
-    h.update(salt.encode('utf-8'))
     key_len = len(key)
 
+    # First, feed key, salt and then key again to the alt hash
     alt_h.update(key)
     alt_h.update(salt.encode('utf-8'))
     alt_h.update(key)
     alt_result = alt_h.digest()
 
-    cnt = key_len
-    while cnt > digest_size:
-        h.update(alt_result)
-        cnt -= digest_size
+    # Feed key and salt to the primary hash
+    h.update(key)
+    h.update(salt.encode('utf-8'))
 
-    h.update(alt_result[:cnt])
+    # Feed as many (loopping) bytes from alt digest as the length of the key
+    for i in range(key_len//digest_size):
+        h.update(alt_result)
+    h.update(alt_result[:(key_len % digest_size)])
 
     # Take the binary representation of the length of the key and for every
-    # 1 add the alternate sum, for every 0 the key.
-    cnt = key_len
-    while cnt > 0:
-        if cnt & 1 == 0:
+    # 1 add the alternate digest, for every 0 the key
+    bits = key_len
+    while bits > 0:
+        if bits & 1 == 0:
             h.update(key)
         else:
             h.update(alt_result)
-        cnt >>= 1
+        bits >>= 1
 
+    # Store the results from the primary hash
     alt_result = h.digest()
 
     h = hashfunc()
 
+    # Add password for each character in the password
     for i in range(key_len):
         h.update(key)
 
     temp_result = h.digest()
 
-    cnt = key_len
-    p_bytes = b''
-    while cnt >= digest_size:
-        p_bytes += temp_result
-        cnt -= digest_size
-    p_bytes += temp_result[:cnt]
+    # Compute a P array of the bytes in temp repeated for the length of the key
+    p_bytes = temp_result * (key_len // digest_size)
+    p_bytes += temp_result[:(key_len % digest_size)]
 
-    cnt = 0
     alt_h = hashfunc()
-    while cnt < 16 + byte2int(alt_result[0]):
+
+    # Add the salt 16 + arbitrary amount decided by first byte in alt digest
+    for i in range(16 + byte2int(alt_result[0])):
         alt_h.update(salt.encode('utf-8'))
-        cnt += 1
 
     temp_result = alt_h.digest()
 
-    cnt = len(salt)
-    s_bytes = b''
-    while cnt >= digest_size:
-        s_bytes += temp_result
-        cnt -= digest_size
-    s_bytes += temp_result[:cnt]
+    # Compute a S array of the bytes in temp_result repeated for the length
+    # of the salt
+    s_bytes = temp_result * (len(salt) // digest_size)
+    s_bytes += temp_result[:(len(salt) % digest_size)]
 
     # Do the actual iterations
     for i in range(rounds):
         h = hashfunc()
 
+        # Alternate adding either the P array or the alt digest
         if i & 1 != 0:
             h.update(p_bytes)
         else:
             h.update(alt_result)
 
+        # If the round is divisible by 3, add the S array
         if i % 3 != 0:
             h.update(s_bytes)
 
+        # If the round is divisible by 7, add the P array
         if i % 7 != 0:
             h.update(p_bytes)
 
+        # Alternate adding either the P array or the alt digest, opposite
+        # of first step
         if i & 1 != 0:
             h.update(alt_result)
         else:
             h.update(p_bytes)
 
         alt_result = h.digest()
-    ret = ''
+
+    # Compute the base64-ish representation of the hash
+    ret = []
     if digest_size == 64:
         # SHA-512
-        ret += b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4)
-        ret += b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4)
-        ret += b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4)
-        ret += b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4)
-        ret += b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4)
-        ret += b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4)
-        ret += b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4)
-        ret += b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4)
-        ret += b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4)
-        ret += b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4)
-        ret += b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4)
-        ret += b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4)
-        ret += b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4)
-        ret += b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4)
-        ret += b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4)
-        ret += b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4)
-        ret += b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4)
-        ret += b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4)
-        ret += b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4)
-        ret += b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4)
-        ret += b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4)
-        ret += b64_from_24bit(int2byte(0), int2byte(0), alt_result[63], 2)
+        ret.append(b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4))
+        ret.append(b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4))
+        ret.append(b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4))
+        ret.append(b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4))
+        ret.append(b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4))
+        ret.append(b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4))
+        ret.append(b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4))
+        ret.append(b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4))
+        ret.append(b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4))
+        ret.append(b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4))
+        ret.append(b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4))
+        ret.append(b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4))
+        ret.append(b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4))
+        ret.append(b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4))
+        ret.append(b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4))
+        ret.append(b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4))
+        ret.append(b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4))
+        ret.append(b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4))
+        ret.append(b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4))
+        ret.append(b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4))
+        ret.append(b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4))
+        ret.append(b64_from_24bit(int2byte(0), int2byte(0), alt_result[63], 2))
     else:
         # SHA-256
-        ret += b64_from_24bit(alt_result[0], alt_result[10], alt_result[20], 4)
-        ret += b64_from_24bit(alt_result[21], alt_result[1], alt_result[11], 4)
-        ret += b64_from_24bit(alt_result[12], alt_result[22], alt_result[2], 4)
-        ret += b64_from_24bit(alt_result[3], alt_result[13], alt_result[23], 4)
-        ret += b64_from_24bit(alt_result[24], alt_result[4], alt_result[14], 4)
-        ret += b64_from_24bit(alt_result[15], alt_result[25], alt_result[5], 4)
-        ret += b64_from_24bit(alt_result[6], alt_result[16], alt_result[26], 4)
-        ret += b64_from_24bit(alt_result[27], alt_result[7], alt_result[17], 4)
-        ret += b64_from_24bit(alt_result[18], alt_result[28], alt_result[8], 4)
-        ret += b64_from_24bit(alt_result[9], alt_result[19], alt_result[29], 4)
-        ret += b64_from_24bit(int2byte(0), alt_result[31], alt_result[30], 3)
+        ret.append(b64_from_24bit(alt_result[0], alt_result[10], alt_result[20], 4))
+        ret.append(b64_from_24bit(alt_result[21], alt_result[1], alt_result[11], 4))
+        ret.append(b64_from_24bit(alt_result[12], alt_result[22], alt_result[2], 4))
+        ret.append(b64_from_24bit(alt_result[3], alt_result[13], alt_result[23], 4))
+        ret.append(b64_from_24bit(alt_result[24], alt_result[4], alt_result[14], 4))
+        ret.append(b64_from_24bit(alt_result[15], alt_result[25], alt_result[5], 4))
+        ret.append(b64_from_24bit(alt_result[6], alt_result[16], alt_result[26], 4))
+        ret.append(b64_from_24bit(alt_result[27], alt_result[7], alt_result[17], 4))
+        ret.append(b64_from_24bit(alt_result[18], alt_result[28], alt_result[8], 4))
+        ret.append(b64_from_24bit(alt_result[9], alt_result[19], alt_result[29], 4))
+        ret.append(b64_from_24bit(int2byte(0), alt_result[31], alt_result[30], 3))
 
     algo = 6 if digest_size == 64 else 5
     if rounds == _ROUNDS_DEFAULT:
-        return '${0}${1}${2}'.format(algo, salt, ret)
+        return '${0}${1}${2}'.format(algo, salt, ''.join(ret))
     else:
-        return '${0}$rounds={1}${2}${3}'.format(algo, rounds, salt, ret)
+        return '${0}$rounds={1}${2}${3}'.format(algo, rounds, salt, ''.join(ret))
 
 
 def b64_from_24bit(b2, b1, b0, n):
