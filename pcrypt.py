@@ -13,11 +13,10 @@ import hashlib
 import re
 import sys
 
-BASE64_CHARACTERS = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+_BASE64_CHARACTERS = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 _SALT_RE = re.compile(r'\$(?P<algo>\d)\$(?:rounds=(?P<rounds>\d+)\$)?(?P<salt>.{1,16})')
-ROUNDS_DEFAULT = 5000 # As used by crypt(3)
-PY2 = sys.version_info < (3, 0, 0)
-
+_ROUNDS_DEFAULT = 5000 # As used by crypt(3)
+_PY2 = sys.version_info < (3, 0, 0)
 _sr = _SystemRandom()
 
 
@@ -27,6 +26,16 @@ class _Method(_namedtuple('_Method', 'name ident salt_chars total_size')):
 
     def __repr__(self):
         return '<crypt.METHOD_{0}>'.format(self.name)
+
+
+#  available salting/crypto methods
+METHOD_SHA256 = _Method('SHA256', '5', 16, 63)
+METHOD_SHA512 = _Method('SHA512', '6', 16, 106)
+
+methods = (
+    METHOD_SHA512,
+    METHOD_SHA256,
+)
 
 
 def mksalt(method=None, rounds=None):
@@ -55,25 +64,15 @@ def crypt(word, salt=None, rounds=_ROUNDS_DEFAULT):
     return _crypt(word, salt)
 
 
-#  available salting/crypto methods
-METHOD_SHA256 = _Method('SHA256', '5', 16, 63)
-METHOD_SHA512 = _Method('SHA512', '6', 16, 106)
-
-methods = (
-    METHOD_SHA256,
-    METHOD_SHA512,
-)
-
-
 def byte2int(value):
-    if PY2:
+    if _PY2:
         return ord(value)
     else:
         return value
 
 
 def int2byte(value):
-    if PY2:
+    if _PY2:
         return chr(value)
     else:
         return value
@@ -100,10 +99,10 @@ def _crypt(key, salt):
     elif algo == 5:
         return sha2_crypt(key, salt, hashlib.sha256, rounds)
     else:
-        raise ValueError('Unsupported algorithm')
+        raise ValueError('Unsupported algorithm, must be either 5 (sha256) or 6 (sha512)')
 
 
-def sha2_crypt(key, salt, hashfunc, rounds=ROUNDS_DEFAULT):
+def sha2_crypt(key, salt, hashfunc, rounds=_ROUNDS_DEFAULT):
     """
     This algorithm is insane. History can be found at
     https://en.wikipedia.org/wiki/Crypt_%28C%29
@@ -231,7 +230,7 @@ def sha2_crypt(key, salt, hashfunc, rounds=ROUNDS_DEFAULT):
         ret += b64_from_24bit(int2byte(0), alt_result[31], alt_result[30], 3)
 
     algo = 6 if digest_size == 64 else 5
-    if rounds == ROUNDS_DEFAULT:
+    if rounds == _ROUNDS_DEFAULT:
         return '${0}${1}${2}'.format(algo, salt, ret)
     else:
         return '${0}$rounds={1}${2}${3}'.format(algo, rounds, salt, ret)
@@ -244,7 +243,7 @@ def b64_from_24bit(b2, b1, b0, n):
     index = b2 << 16 | b1 << 8 | b0
     ret = []
     for i in range(n):
-        ret.append(BASE64_CHARACTERS[index & 0x3f])
+        ret.append(_BASE64_CHARACTERS[index & 0x3f])
         index >>= 6
     return ''.join(ret)
 
