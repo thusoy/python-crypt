@@ -9,6 +9,12 @@ install_requires = []
 if sys.version_info < (2, 7, 0):
     install_requires.append('argparse')
 
+# Create a long description for PyPI
+long_description = []
+for doc_file in ('README.md', 'CHANGELOG.md'):
+    with open(doc_file) as fh:
+        long_description.append(fh.read())
+
 setup(
     name='pcrypt',
     version='1.0.3',
@@ -16,6 +22,7 @@ setup(
     author_email='git@thusoy.com',
     url='https://github.com/thusoy/python-crypt',
     description="Pure-python implementation of the SHA2 crypt(3) functions",
+    long_description='\n'.join(long_description),
     py_modules=['pcrypt'],
     install_requires=install_requires,
     extras_require={
