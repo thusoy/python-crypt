@@ -21,7 +21,7 @@ except:
 
 setup(
     name='pcrypt',
-    version='1.0.3',
+    version='1.0.4',
     author='Tarjei Husøy',
     author_email='git@thusoy.com',
     url='https://github.com/thusoy/python-crypt',
