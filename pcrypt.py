@@ -269,10 +269,13 @@ def cli(argv=None):
         sys.stderr.write('Rounds must be between 1000 and 999999999.\n')
         sys.exit(1)
 
-    if args.single_prompt:
-        password = getpass.getpass('Enter password: ')
+    if sys.stdin.isatty():
+        if args.single_prompt:
+            password = getpass.getpass('Enter password: ')
+        else:
+            password = double_prompt_for_plaintext_password()
     else:
-        password = double_prompt_for_plaintext_password()
+        password = sys.stdin.readline().rstrip('\n')
     method = METHOD_SHA256 if args.algo == 'sha256' else METHOD_SHA512
     print(crypt(password, method, rounds=args.rounds))
 
