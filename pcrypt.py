@@ -3,6 +3,9 @@ Pure-python implementations of the SHA2-based variants of crypt(3).
 
 Pretty close to direct translation from the glibc crypt(3) source, pardon
 the c-isms.
+
+Spec can be seen in SHA-crypt.txt, originally sourced from
+https://www.akkadia.org/drepper/SHA-crypt.txt
 """
 
 from __future__ import division, print_function
