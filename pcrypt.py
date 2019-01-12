@@ -280,7 +280,7 @@ def cli(argv=None):
     else:
         password = sys.stdin.readline().rstrip('\n')
     method = METHOD_SHA256 if args.algo == 'sha256' else METHOD_SHA512
-    print(crypt(password, method, rounds=args.rounds))
+    print(crypt(password, method, rounds=args.rounds), end='\n' if sys.stdout.isatty() else '')
 
 
 def double_prompt_for_plaintext_password():

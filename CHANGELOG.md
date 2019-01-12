@@ -4,7 +4,8 @@ Change log
 [Unreleased] - N/A
 ------------------
 
-No unreleased features as of now.
+### Fixed
+- Only print trailing newline in cli when writing to a tty.
 
 
 [1.0.4] - 2016-02-08

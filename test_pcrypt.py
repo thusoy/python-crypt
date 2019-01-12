@@ -1,7 +1,8 @@
 import crypt
 import mock
-import pcrypt
 import re
+
+import pcrypt
 
 
 def test_pcrypt():
@@ -47,8 +48,5 @@ def test_cli(capsys):
     with mock.patch('sys.stdin.readline', getpass_mock):
         pcrypt.cli(args)
         output, err = capsys.readouterr()
-        match = re.match(r'\$5\$rounds=10000\$.{16}\$.*\n', output)
+        match = re.match(r'\$5\$rounds=10000\$.{16}\$.*', output)
         assert match is not None
-
-if __name__ == '__main__':
-    test_pcrypt()
