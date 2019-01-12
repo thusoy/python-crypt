@@ -1,8 +1,8 @@
 Change log
 ==========
 
-[Unreleased] - N/A
-------------------
+[1.0.5] - 2018-01-12
+--------------------
 
 ### Fixed
 - Only print trailing newline in cli when writing to a tty.
@@ -21,5 +21,5 @@ Change log
 Practically first release.
 
 
-[unreleased]: https://github.com/thusoy/python-crypt/compare/v1.0.4...HEAD
+[1.0.5]: https://github.com/thusoy/python-crypt/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/thusoy/python-crypt/compare/v1.0.3...v1.0.4
